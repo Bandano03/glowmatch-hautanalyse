@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GlowMatch AI - Hautanalyse</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.min.js"></script>
+  <style>
+    video, canvas {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 12px;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>GlowMatch AI – Gesichtsanalyse</h2>
+  <video id="input_video" autoplay muted playsinline></video>
+  <canvas id="output_canvas"></canvas>
+  <div id="results"></div>
+
+  <script>
+    const video = document.getElementById('input_video');
+    const canvas = document.getElementById('output_canvas');
+    const ctx = canvas.getContext('2d');
+    const resultsBox = document.getElementById('results');
+
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          resolve(video);
+        };
+      });
+    }
+
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    });
+
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6,
+    });
+
+    faceMesh.onResults((results) => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      if (results.multiFaceLandmarks.length > 0) {
+        const points = results.multiFaceLandmarks[0];
+        resultsBox.innerHTML = `<p>Gesicht erkannt – ${points.length} Merkmale analysiert</p>`;
+      } else {
+        resultsBox.innerHTML = "<p>Kein Gesicht erkannt</p>";
+      }
+    });
+
+    setupCamera().then(() => {
+      video.play();
+      function renderFrame() {
+        faceMesh.send({ image: video });
+        requestAnimationFrame(renderFrame);
+      }
+      renderFrame();
+    });
+  </script>
+</body>
+</html>
